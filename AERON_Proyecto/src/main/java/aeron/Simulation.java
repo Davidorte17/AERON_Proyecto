@@ -2,19 +2,21 @@ package aeron;
 
 public class Simulation {
     public static void main(String[] args) {
-        // Configuramos el Logger para modo Secuencial (prueba inicial)
-        // 2 Aviones, 1 Pista, 1 Puerta, 0 Operarios
-        Logger.setup("SEQUENTIAL", 2, 1, 1, 0);
+        // Configuramos Logger
+        Logger.setup("SEQUENTIAL", 1, 1, 1, 0);
+        AirportWindow window = new AirportWindow(); // Creamos la ventana (aunque aún no pinta nada sola)
 
-        Logger.log("Iniciando simulación AERON...");
+        Logger.log("--- INICIO SIMULACIÓN SECUENCIAL ---");
 
-        // Creamos objetos de prueba
         ControlTower torre = new ControlTower();
-        Airplane avion1 = new Airplane("IBE-001");
 
-        Logger.log("Avión creado: " + avion1.getId());
+        // Creamos el avión y le pasamos la torre
+        Airplane avion1 = new Airplane("IBE-001", torre);
 
-        Logger.log("Fin de la simulación de prueba.");
+        // Ejecutamos el ciclo del avión (como metodo normal, no como hilo todavía)
+        avion1.run();
+
+        Logger.log("--- FIN SIMULACIÓN ---");
         Logger.close();
     }
 }

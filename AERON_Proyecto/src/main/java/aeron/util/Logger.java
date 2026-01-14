@@ -35,8 +35,14 @@ public class Logger {
             writer = new PrintWriter(new FileWriter(folder + fileName, true), true);
             System.out.println("Log iniciado en: " + folder + fileName);
         } catch (IOException e) {
-            System.err.println("ERROR CRÍTICO: No se puede crear el fichero de log.");
-            e.printStackTrace();
+            // --- NUEVO PRÁCTICA 6: Capturar y mostrar excepción personalizada ---
+            try {
+                // Lanzamos la excepción específica que pide la práctica
+                throw new aeron.exceptions.LogException(fileName);
+            } catch (aeron.exceptions.LogException ex) {
+                // Imprimimos el mensaje oficial: "No se ha encontrado el archivo de log..."
+                System.err.println(ex.getMessage());
+            }
         }
     }
 
@@ -65,7 +71,6 @@ public class Logger {
         //Actualizamos el JSON
         AirportJson.actualizarEstado(id, estado);
     }
-    // -----------------------------------------------------------
 
     public static synchronized void log(String message) {
         if (writer != null) {

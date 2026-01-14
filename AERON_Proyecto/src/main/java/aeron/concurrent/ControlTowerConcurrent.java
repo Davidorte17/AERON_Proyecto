@@ -1,5 +1,7 @@
 package aeron.concurrent;
 
+import aeron.exceptions.ResourceException;
+import aeron.exceptions.SaturationException;
 import aeron.model.Airplane;
 import aeron.model.FlightStatus;
 import aeron.util.TowerInterface;
@@ -32,6 +34,7 @@ public class ControlTowerConcurrent implements TowerInterface {
     // RECURSOS
     private List<Runway> runways;
     private List<Gate> gates;
+    private static final int MAX_COLA = 5; // Ponemos 5 para forzar el error rápido
 
     // COLA DE PETICIONES Y PENDIENTES
     private Queue<Request> requestQueue;
@@ -73,6 +76,15 @@ public class ControlTowerConcurrent implements TowerInterface {
 
         try {
             mutexCola.acquire();
+
+            // VERIFICAR SATURACIÓN
+            if (requestQueue.size() >= MAX_COLA) {
+                mutexCola.release(); // Importante soltar el mutex antes de irnos
+
+                // Lanzamos la excepción (que capturará el Avión)
+                throw new SaturationException(tipo.toString(), avion.getId());
+            }
+
             Request req = new Request(avion, tipo);
             requestQueue.add(req);
 
@@ -88,6 +100,10 @@ public class ControlTowerConcurrent implements TowerInterface {
             semaforoPeticiones.release();
 
         } catch (InterruptedException e) { e.printStackTrace(); }
+        catch (SaturationException e) {
+        // Capturamos aquí o dejamos que se propague.
+        Logger.logTorre(e.getMessage());
+    }
     }
 
     // --- MÉTODOS DEL OPERARIO (Consumidor) ---
@@ -113,6 +129,13 @@ public class ControlTowerConcurrent implements TowerInterface {
                 if (getFreeRunway() != null && getFreeGate() != null) {
                     asignarAterrizaje(req, operarioId);
                 } else {
+                    try {
+                        String recursoFaltante = (getFreeRunway() == null) ? "Pista" : "Puerta";
+                        throw new ResourceException(recursoFaltante, avion.getId());
+                    } catch (ResourceException e) {
+                        // Imprimimos el error oficial
+                        Logger.logTorre(e.getMessage());
+                    }
                     pendingLandings.add(req);
                     Logger.logTorre("Petición POSPUESTA por falta de recursos.");
                 }

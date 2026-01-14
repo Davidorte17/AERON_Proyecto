@@ -56,6 +56,8 @@ public class Simulation {
             new Thread(avion).start();
             try { Thread.sleep(50); } catch (InterruptedException e) {}
         }
+
+        aeron.util.AirportStats.generarResumen(numAviones, numPistas);
     }
 
     private static void runSequential() {

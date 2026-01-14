@@ -37,7 +37,13 @@ public class AirportJson {
             writer.write("\n}");
 
         } catch (IOException e) {
-            System.err.println("Error escribiendo JSON: " + e.getMessage());
+            try {
+                // Lanzamos la excepción específica del Panel
+                throw new aeron.exceptions.FlightPanelException();
+            } catch (aeron.exceptions.FlightPanelException ex) {
+                // Imprimimos el mensaje oficial: "No se ha actualizado el panel de vuelos..."
+                System.err.println(ex.getMessage());
+            }
         }
     }
 }

@@ -49,6 +49,9 @@ public class Simulation {
             // CAMBIO: Formato del PDF "IBE-" seguido de 3 dígitos (001, 002...)
             String flightId = "IBE-" + String.format("%03d", i);
 
+            // Registramos el avion en el JSON con estado inicial
+            aeron.util.AirportJson.actualizarEstado(flightId, "IN_FLIGHT");
+
             aeron.model.Airplane avion = new aeron.model.Airplane(flightId, tower);
             new Thread(avion).start();
             try { Thread.sleep(50); } catch (InterruptedException e) {}

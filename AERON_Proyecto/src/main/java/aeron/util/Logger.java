@@ -56,13 +56,14 @@ public class Logger {
         log("[TORRE] " + message);
     }
 
-    // 3. Método para el Panel (Lo dejamos preparado para la Práctica 5)
+    // 3. Metodo para el Panel (Lo dejamos preparado para la Práctica 5)
     // De momento, solo lo escribe en el log normal para que veas que funciona.
     public static void updatePanel(String id, String estado, String pista, String puerta) {
         String msg = String.format("[PANEL] Avión: %s | Estado: %s | Pista: %s | Puerta: %s",
                 id, estado, pista != null ? pista : "-", puerta != null ? puerta : "-");
-        // Opcional: Si es mucho ruido, comenta la siguiente línea
         log(msg);
+        //Actualizamos el JSON
+        AirportJson.actualizarEstado(id, estado);
     }
     // -----------------------------------------------------------
 

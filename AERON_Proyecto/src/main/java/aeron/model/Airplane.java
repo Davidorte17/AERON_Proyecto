@@ -1,17 +1,17 @@
 package aeron.model;
 
-import aeron.sequential.ControlTower;
 import aeron.util.Logger;
 import aeron.util.TowerInterface;
-
 import java.util.Random;
 
-// Implementamos Runnable para que en el futuro sea un Hilo (Thread) fácilmente
 public class Airplane implements Runnable {
     private String id;
     private FlightStatus status;
-    private TowerInterface tower; // El avión necesita conocer la torre para pedir cosas
+    private TowerInterface tower;
     private Random random = new Random();
+
+    private String assignedRunwayId;
+    private String assignedGateId;
 
     public Airplane(String id, TowerInterface tower) {
         this.id = id;
@@ -19,83 +19,82 @@ public class Airplane implements Runnable {
         this.status = FlightStatus.IN_FLIGHT;
     }
 
-    public String getId() {
-        return id;
-    }
+    // Setters para que la Torre nos diga qué nos ha tocado
+    public void setAssignedRunwayId(String id) { this.assignedRunwayId = id; }
+    public void setAssignedGateId(String id) { this.assignedGateId = id; }
 
-    public FlightStatus getStatus() {
-        return status;
-    }
+    public String getId() { return id; }
+    public FlightStatus getStatus() { return status; }
+    public void setStatus(FlightStatus status) { this.status = status; }
 
-    public void setStatus(FlightStatus status) {
-        this.status = status;
-    }
-
-    // Este es el ciclo de vida del avión
     @Override
     public void run() {
-        Logger.log("Avión [" + id + " - " + status + "] Inicia ciclo");
+        Logger.logEventos("Avión [" + id + " - " + status + "] Inicia ciclo");
+        Logger.logEventos("Avión [" + id + " - " + status + "] El avión está en vuelo");
 
         try {
-            // 1. Vuelo inicial
             Thread.sleep(random.nextInt(1000) + 500);
 
-            // 2. SOLICITA ATERRIZAJE
+            // --- ATERRIZAJE ---
             this.status = FlightStatus.LANDING_REQUEST;
-            Logger.log("Avión [" + id + " - " + status + "] Solicita aterrizaje...");
+            Logger.logEventos("Avión [" + id + " - IN_FLIGHT] Solicita aterrizaje a torre de control");
+            tower.registrarPeticion(this);
+            Logger.logEventos("Avión [" + id + " - LANDING_REQUEST] Solicitud de aterrizaje en cola");
+            Logger.logEventos("Avión [" + id + " - LANDING_REQUEST] Espera autorización de aterrizaje");
 
-            // --- CAMBIO: LLAMAMOS A LA TORRE ---
+            while (this.status != FlightStatus.LANDING_ASSIGNED) { Thread.sleep(10); }
+
+            // Aquí ya tenemos pista asignada por la torre
+            Logger.logEventos("Avión [" + id + " - LANDING_ASSIGNED] Aterrizaje autorizado");
+            Logger.logEventos("Avión [" + id + " - LANDING_ASSIGNED] Me ha tocado aterrizar en la Pista [" + assignedRunwayId + "]");
+            Logger.logEventos("Avión [" + id + " - LANDING_ASSIGNED] Me ha tocado embarcar en la Puerta [" + assignedGateId + "]");
+
+            this.status = FlightStatus.LANDING;
+            Logger.logEventos("Avión [" + id + " - LANDING] Aterrizando");
+            // Notificar que empieza a aterrizar (para panel)
+            tower.registrarPeticion(this);
+            Thread.sleep(100);
+
+            this.status = FlightStatus.LANDED;
+            Logger.logEventos("Avión [" + id + " - LANDED] Aterrizado");
+            tower.registrarPeticion(this); // Notificar LANDED (Libera pista)
+            Thread.sleep(50);
+
+            // --- EMBARQUE ---
+            this.status = FlightStatus.BOARDING;
+            Logger.logEventos("Avión [" + id + " - BOARDING] Embarcando");
+            Thread.sleep(random.nextInt(500));
+
+            this.status = FlightStatus.BOARDED;
+            Logger.logEventos("Avión [" + id + " - BOARDED] Embarcado");
+            tower.registrarPeticion(this); // Notificar BOARDED (Libera puerta)
+            Thread.sleep(50);
+
+            // --- DESPEGUE ---
+            this.status = FlightStatus.TAKEOFF_REQUESTED;
+            Logger.logEventos("Avión [" + id + " - TAKEOFF_REQUESTED] Solicitud de despegue en cola");
             tower.registrarPeticion(this);
 
-            // Esperamos a que la torre nos cambie el estado a ASSIGNED
-            // (En secuencial es instantáneo gracias al metodo procesarPeticionesSecuencial)
-            if (this.status == FlightStatus.LANDING_ASSIGNED) {
-                // 3. Aterrizando
-                this.status = FlightStatus.LANDING;
-                Logger.log("Avión [" + id + " - " + status + "] Aterrizando...");
-                Thread.sleep(100);
+            while (this.status != FlightStatus.TAKEOFF_ASSIGNED) { Thread.sleep(10); }
 
-                // 4. Aterrizado
-                this.status = FlightStatus.LANDED;
-                Logger.log("Avión [" + id + " - " + status + "] Aterrizado.");
+            Logger.logEventos("Avión [" + id + " - TAKEOFF_ASSIGNED] Despegue autorizado");
+            Logger.logEventos("Avión [" + id + " - TAKEOFF_ASSIGNED] Me ha tocado despegar en la Pista [" + assignedRunwayId + "]");
 
-                tower.liberarPista(this);
+            this.status = FlightStatus.DEPARTING;
+            Logger.logEventos("Avión [" + id + " - DEPARTING] Despegando");
+            // Notificar que empieza a despegar
+            tower.registrarPeticion(this);
+            Thread.sleep(100);
 
-                // 5. Embarcando
-                this.status = FlightStatus.BOARDING;
-                Logger.log("Avión [" + id + " - " + status + "] Embarcando...");
-                Thread.sleep(random.nextInt(500));
-
-                // 6. Embarcado
-                this.status = FlightStatus.BOARDED;
-                Logger.log("Avión [" + id + " - " + status + "] Embarcado.");
-
-                // 7. SOLICITA DESPEGUE
-                this.status = FlightStatus.TAKEOFF_REQUESTED;
-                Logger.log("Avión [" + id + " - " + status + "] Solicita despegue...");
-
-                // --- CAMBIO: LLAMAMOS A LA TORRE OTRA VEZ ---
-                tower.registrarPeticion(this);
-
-                if (this.status == FlightStatus.TAKEOFF_ASSIGNED) {
-                    // 8. Despegando
-                    this.status = FlightStatus.DEPARTING;
-                    Logger.log("Avión [" + id + " - " + status + "] Despegando...");
-                    Thread.sleep(100);
-
-                    // 9. Fin
-                    this.status = FlightStatus.DEPARTED;
-                    Logger.log("Avión [" + id + " - " + status + "] Despegado. Fin.");
-                    tower.liberarPista(this);
-                }
-            }
+            this.status = FlightStatus.DEPARTED;
+            Logger.logEventos("Avión [" + id + " - DEPARTED] El avión ha despegado");
+            tower.registrarPeticion(this); // Fin
 
         } catch (InterruptedException e) {
-            Logger.log("Error en avión " + id);
+            e.printStackTrace();
         }
     }
+
     @Override
-    public String toString() {
-        return this.id;
-    }
+    public String toString() { return this.id; }
 }

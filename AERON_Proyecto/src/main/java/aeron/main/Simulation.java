@@ -7,7 +7,7 @@ public class Simulation {
 
     // CAMBIAMOS ESTO PARA PROBAR UN MODO U OTRO
     // El enunciado pide que se pueda elegir aquí
-    private static final SimulationMode MODE = SimulationMode.SEQUENTIAL;
+    private static final SimulationMode MODE = SimulationMode.CONCURRENT;
 
     public static void main(String[] args) {
         if (MODE == SimulationMode.SEQUENTIAL) {
@@ -21,27 +21,34 @@ public class Simulation {
         System.out.println("--- INICIANDO MODO CONCURRENTE ---");
 
         // Configuramos de parámetros
-        int numAviones = 10;
-        int numPistas = 1;
-        int numPuertas = 3;
-        int numOperarios = 0; // De momento 0
+        int numAviones = 20;
+        int numPistas = 3;
+        int numPuertas = 5;
+        int numOperarios = 5;
 
         // 2. INICIAMOS EL LOGGER
         aeron.util.Logger.setup("CONCURRENT", numAviones, numPistas, numPuertas, numOperarios);
 
         // 3. Creamos la Torre
-        aeron.concurrent.ControlTowerConcurrent tower = new aeron.concurrent.ControlTowerConcurrent();
-        // Nota: Si tu constructor admite parámetros, pásale numPistas y numPuertas
+        // Nota: La creación de Pistas (PISx) y Puertas (GATE x) se hace DENTRO del constructor de la torre
+        ControlTowerConcurrent tower = new ControlTowerConcurrent(numPistas, numPuertas);
 
-        // 4. ABRIMOS LA VENTANA (¡Esto también faltaba!)
-        // Asegúrate de importar aeron.util.AirportWindow
+        // CONTRATAR OPERARIOS (Formato OP-xxx gestionado dentro de la clase Operario)
+        for (int i = 1; i <= numOperarios; i++) {
+            aeron.concurrent.Operario op = new aeron.concurrent.Operario(tower, i);
+            new Thread(op).start();
+        }
+
+        // 4. ABRIMOS LA VENTANA
         aeron.util.AirportWindow ventana = new aeron.util.AirportWindow();
         ventana.setVisible(true);
         aeron.util.Logger.setWindow(ventana);
 
-        // 5. Creamos y lanzamos los aviones
+        // 5. Creamos y lanzamos los aviones con el FORMATO NUEVO (IBE-001)
         for (int i = 1; i <= numAviones; i++) {
-            String flightId = "IB-" + String.format("%02d", i);
+            // CAMBIO: Formato del PDF "IBE-" seguido de 3 dígitos (001, 002...)
+            String flightId = "IBE-" + String.format("%03d", i);
+
             aeron.model.Airplane avion = new aeron.model.Airplane(flightId, tower);
             new Thread(avion).start();
             try { Thread.sleep(50); } catch (InterruptedException e) {}
@@ -61,14 +68,15 @@ public class Simulation {
         // 2. Torre Secuencial
         aeron.sequential.ControlTower tower = new aeron.sequential.ControlTower();
 
-        // 3. Ventana (Opcional en secuencial, pero recomendable)
+        // 3. Ventana
         aeron.util.AirportWindow ventana = new aeron.util.AirportWindow();
         ventana.setVisible(true);
         aeron.util.Logger.setWindow(ventana);
 
         // 4. Ejecución
         for (int i = 1; i <= numAviones; i++) {
-            String id = "IB-SEQ-" + String.format("%02d", i);
+            // Actualizamos también el secuencial para que sea parecido (IBE-SEQ-001)
+            String id = "IBE-SEQ-" + String.format("%03d", i);
             aeron.model.Airplane avion = new aeron.model.Airplane(id, tower);
             avion.run();
         }

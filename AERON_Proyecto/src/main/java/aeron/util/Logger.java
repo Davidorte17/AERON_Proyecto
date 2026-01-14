@@ -15,18 +15,14 @@ public class Logger {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
         String fileName;
 
-        // Definimos la carpeta según el modo
         String folder = mode.equalsIgnoreCase("SEQUENTIAL") ? "logs/secuencial/" : "logs/concurrent/";
 
-        // --- CORRECCIÓN: CREAR CARPETAS SI NO EXISTEN ---
         File directory = new File(folder);
         if (!directory.exists()) {
-            boolean creadas = directory.mkdirs(); // Crea logs y logs/concurrent a la vez
+            boolean creadas = directory.mkdirs();
             if (creadas) System.out.println("Carpetas de log creadas: " + folder);
         }
-        // ------------------------------------------------
 
-        // Formato obligatorio: aeron-MODE-N1AV-N2PIS-N3PUE[-N4OPE-]-TIMESTAMP
         if (mode.equalsIgnoreCase("CONCURRENT")) {
             fileName = String.format("aeron-%s-%dAV-%dPIS-%dPUE-%dOPE-%s.log",
                     mode, nAviones, nPistas, nPuertas, nOperarios, timestamp);
@@ -48,17 +44,33 @@ public class Logger {
         window = w;
     }
 
-    // Metodo para escribir mensajes (sincronizado para el futuro modo concurrente)
+    // --- MÉTODOS NUEVOS PARA CORREGIR ERRORES DE COMPILACIÓN ---
+
+    // 1. Log específico para eventos del Avión
+    public static void logEventos(String message) {
+        log("[AVION] " + message);
+    }
+
+    // 2. Log específico para eventos de la Torre/Operarios
+    public static void logTorre(String message) {
+        log("[TORRE] " + message);
+    }
+
+    // 3. Método para el Panel (Lo dejamos preparado para la Práctica 5)
+    // De momento, solo lo escribe en el log normal para que veas que funciona.
+    public static void updatePanel(String id, String estado, String pista, String puerta) {
+        String msg = String.format("[PANEL] Avión: %s | Estado: %s | Pista: %s | Puerta: %s",
+                id, estado, pista != null ? pista : "-", puerta != null ? puerta : "-");
+        // Opcional: Si es mucho ruido, comenta la siguiente línea
+        log(msg);
+    }
+    // -----------------------------------------------------------
+
     public static synchronized void log(String message) {
-        // Escribir en fichero
         if (writer != null) {
             writer.println(message);
         }
-
-        // Escribir en consola
         System.out.println(message);
-
-        // <--- 3. ESCRIBIR EN LA VENTANA (Si existe)
         if (window != null) {
             window.addLog(message);
         }

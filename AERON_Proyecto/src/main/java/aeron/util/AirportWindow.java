@@ -1,4 +1,4 @@
-package aeron;
+package aeron.util;
 
 import javax.swing.*;
 import java.awt.*;

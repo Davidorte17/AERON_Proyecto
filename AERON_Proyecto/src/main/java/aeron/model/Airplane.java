@@ -1,4 +1,8 @@
-package aeron;
+package aeron.model;
+
+import aeron.sequential.ControlTower;
+import aeron.util.Logger;
+import aeron.util.TowerInterface;
 
 import java.util.Random;
 
@@ -6,13 +10,13 @@ import java.util.Random;
 public class Airplane implements Runnable {
     private String id;
     private FlightStatus status;
-    private ControlTower tower; // El avión necesita conocer la torre para pedir cosas
+    private TowerInterface tower; // El avión necesita conocer la torre para pedir cosas
     private Random random = new Random();
 
-    public Airplane(String id, ControlTower tower) {
+    public Airplane(String id, TowerInterface tower) {
         this.id = id;
         this.tower = tower;
-        this.status = FlightStatus.IN_FLIGHT; // Estado inicial
+        this.status = FlightStatus.IN_FLIGHT;
     }
 
     public String getId() {
@@ -55,6 +59,8 @@ public class Airplane implements Runnable {
                 this.status = FlightStatus.LANDED;
                 Logger.log("Avión [" + id + " - " + status + "] Aterrizado.");
 
+                tower.liberarPista(this);
+
                 // 5. Embarcando
                 this.status = FlightStatus.BOARDING;
                 Logger.log("Avión [" + id + " - " + status + "] Embarcando...");
@@ -80,11 +86,16 @@ public class Airplane implements Runnable {
                     // 9. Fin
                     this.status = FlightStatus.DEPARTED;
                     Logger.log("Avión [" + id + " - " + status + "] Despegado. Fin.");
+                    tower.liberarPista(this);
                 }
             }
 
         } catch (InterruptedException e) {
             Logger.log("Error en avión " + id);
         }
+    }
+    @Override
+    public String toString() {
+        return this.id;
     }
 }

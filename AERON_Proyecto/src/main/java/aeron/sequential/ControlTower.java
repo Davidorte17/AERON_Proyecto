@@ -1,9 +1,14 @@
-package aeron;
+package aeron.sequential;
+
+import aeron.model.Airplane;
+import aeron.model.FlightStatus;
+import aeron.util.Logger;
+import aeron.util.TowerInterface;
 
 import java.util.LinkedList;
 import java.util.Queue;
 
-public class ControlTower {
+public class ControlTower implements TowerInterface{
     // Definimos la cola de
     private Queue<Airplane> peticiones;
 
@@ -13,13 +18,12 @@ public class ControlTower {
     }
 
     // Metodo que usan los aviones para pedir permiso (Aterrizar o Despegar)
+    @Override
     public void registrarPeticion(Airplane avion) {
         // Añadimos el avión a la cola
         peticiones.add(avion);
         Logger.log("Torre: Registrada petición de " + avion.getId() + " [" + avion.getStatus() + "]");
 
-        // En la Práctica 3 aquí habría Operarios (Hilos) cogiendo trabajo.
-        // En la Práctica 2 (Secuencial), la torre procesa inmediatamente.
         procesarPeticionesSecuencial();
     }
 
@@ -42,5 +46,10 @@ public class ControlTower {
                 Logger.log("Torre: Autorizado despegue para " + avion.getId());
             }
         }
+    }
+
+    @Override
+    public void liberarPista(Airplane avion) {
+        // En secuencial no hacemos nada, pero hay que ponerlo para cumplir el contrato de la interfaz
     }
 }

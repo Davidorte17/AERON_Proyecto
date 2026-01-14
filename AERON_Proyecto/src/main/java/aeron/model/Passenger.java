@@ -1,4 +1,4 @@
-package aeron;
+package aeron.model;
 
 public class Passenger {
     // La práctica dice que simulemos pasajeros, pero no exige lógica compleja por ahora.

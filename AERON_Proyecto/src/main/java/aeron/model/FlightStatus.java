@@ -1,4 +1,4 @@
-package aeron;
+package aeron.model;
 
 // Estados definidos en la Práctica 2
 public enum FlightStatus {

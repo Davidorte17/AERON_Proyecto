@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import aeron.main.Simulation;
 
 public class Logger {
     private static PrintWriter writer;
@@ -70,6 +71,11 @@ public class Logger {
         log(msg);
         //Actualizamos el JSON
         AirportJson.actualizarEstado(id, estado);
+
+        //Enviamos al servidor si está activo
+        if (Simulation.server != null) {
+            Simulation.server.broadcastUpdate(id, estado);
+        }
     }
 
     public static synchronized void log(String message) {

@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 // importa clase de Request (peticiones)
-import aeron.concurrent.ControlTowerConcurrent.Request;
+import aeron.concurrent.Request;
 import aeron.concurrent.ControlTowerConcurrent;
 
 // importa clase de Runway (pista)

@@ -2,12 +2,15 @@ package aeron.main;
 
 import aeron.concurrent.ControlTowerConcurrent;
 import aeron.model.Airplane;
+import aeron.net.DashboardServer;
 
 public class Simulation {
 
     // CAMBIAMOS ESTO PARA PROBAR UN MODO U OTRO
     // El enunciado pide que se pueda elegir aquí
     private static final SimulationMode MODE = SimulationMode.CONCURRENT;
+
+    public static DashboardServer server;
 
     public static void main(String[] args) {
         if (MODE == SimulationMode.SEQUENTIAL) {
@@ -18,13 +21,40 @@ public class Simulation {
     }
 
     private static void runConcurrent() {
-        System.out.println("--- INICIANDO MODO CONCURRENTE ---");
+        System.out.println("--- INICIANDO MODO CONCURRENTE (SISTEMA DISTRIBUIDO) ---");
 
         // Configuramos de parámetros
         int numAviones = 20;
         int numPistas = 3;
         int numPuertas = 5;
         int numOperarios = 5;
+
+        // 1. INICIAR SERVIDOR
+        try {
+            server = new aeron.net.DashboardServer(9999);
+            server.start();
+            System.out.println("✅ [SERVIDOR] Listo en puerto 9999.");
+        } catch (Exception e) {
+            System.err.println("❌ [SERVIDOR] Error: " + e.getMessage());
+        }
+
+        // =============================================================
+        // ✋ ESPERA AUTOMÁTICA DE CLIENTES
+        // =============================================================
+        System.out.println("\n┌────────────────────────────────────────────────────────┐");
+        System.out.println("│  ⏳ ESPERANDO AL PANEL REMOTO...                       │");
+        System.out.println("│  --> Ejecuta ahora 'RemotePanel' para continuar.       │");
+        System.out.println("└────────────────────────────────────────────────────────┘");
+
+        // Bucle que comprueba cada medio segundo si alguien se ha conectado
+        while (server.getNumClients() == 0) {
+            try {
+                Thread.sleep(500);
+                System.out.print("."); // Efecto visual de espera
+            } catch (InterruptedException e) {}
+        }
+        System.out.println("\n\n🔌 ¡CLIENTE DETECTADO! LANZANDO SIMULACIÓN... 🚀\n");
+        // =============================================================
 
         // 2. INICIAMOS EL LOGGER
         aeron.util.Logger.setup("CONCURRENT", numAviones, numPistas, numPuertas, numOperarios);

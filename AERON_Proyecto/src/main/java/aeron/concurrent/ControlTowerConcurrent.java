@@ -17,20 +17,6 @@ import java.util.Queue;
 import java.util.concurrent.Semaphore;
 
 public class ControlTowerConcurrent implements TowerInterface {
-
-    // --- CLASE INTERNA REQUEST ---
-    public static class Request {
-        public Airplane plane;
-        public RequestType type;
-
-        public Request(Airplane plane, RequestType type) {
-            this.plane = plane;
-            this.type = type;
-        }
-        @Override
-        public String toString() { return plane.getId(); }
-    }
-
     // RECURSOS
     private List<Runway> runways;
     private List<Gate> gates;

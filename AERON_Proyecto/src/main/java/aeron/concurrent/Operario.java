@@ -17,7 +17,7 @@ public class Operario implements Runnable {
         Logger.logTorre("Operario [" + id + "] esperando nueva petición...");
         try {
             while (true) {
-                ControlTowerConcurrent.Request peticion = tower.obtenerSiguientePeticion();
+                Request peticion = tower.obtenerSiguientePeticion();
                 // Delegamos el log detallado a la torre para centralizar la lógica
                 tower.procesarPeticion(peticion, this.id);
                 Thread.sleep(50);

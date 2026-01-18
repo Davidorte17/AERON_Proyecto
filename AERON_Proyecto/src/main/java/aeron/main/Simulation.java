@@ -59,16 +59,9 @@ public class Simulation {
             System.err.println("❌ [SERVIDOR] Error: " + e.getMessage());
         }
 
-        // =============================================================
-        // ✋ ESPERA AUTOMÁTICA DE CLIENTES (Mejora de Usabilidad)
-        // =============================================================
-        // DEFENSA: Este bloque no lo pide el enunciado explícitamente, pero lo añadimos
-        // para garantizar que el Panel Remoto no pierda los primeros eventos.
-        // La simulación se pausa hasta que detectamos que el cliente se ha conectado.
-        System.out.println("\n┌────────────────────────────────────────────────────────┐");
-        System.out.println("│  ⏳ ESPERANDO AL PANEL REMOTO...                       │");
-        System.out.println("│  --> Ejecuta ahora 'RemotePanel' para continuar.       │");
-        System.out.println("└────────────────────────────────────────────────────────┘");
+        // --- AUTO-LANZAMIENTO ---
+        lanzarRemotePanelAutomaticamente();
+        // -------------------------------
 
         // Bucle que comprueba cada medio segundo si alguien se ha conectado
         while (server.getNumClients() == 0) {
@@ -114,11 +107,11 @@ public class Simulation {
             new Thread(avion).start(); // .start() es vital para que sea concurrente
 
             // Pequeña pausa para escalonar las llegadas y no saturar el log instantáneamente
-            try { Thread.sleep(50); } catch (InterruptedException e) {}
+            try { Thread.sleep(2500); } catch (InterruptedException e) {}
         }
 
-        // PRÁCTICA 6: Al terminar el lanzamiento, generamos el resumen estadístico
-        aeron.util.AirportStats.generarResumen(numAviones, numPistas);
+        // Al terminar el lanzamiento, generamos el resumen estadístico
+        aeron.util.AirportStats.generarResumen();
     }
 
     /**
@@ -128,9 +121,9 @@ public class Simulation {
     private static void runSequential() {
         System.out.println("--- INICIANDO MODO SECUENCIAL ---");
 
-        int numAviones = 10;
-        int numPistas = 1;
-        int numPuertas = 3;
+        int numAviones = 20;
+        int numPistas = 3;
+        int numPuertas = 5;
 
         // 1. INICIAMOS EL LOGGER
         aeron.util.Logger.setup("SEQUENTIAL", numAviones, numPistas, numPuertas, 0);
@@ -158,5 +151,34 @@ public class Simulation {
 
         // Cerrar logger al acabar en secuencial
         aeron.util.Logger.close();
+    }
+
+    // Método mágico para lanzar el otro programa automáticamente
+    private static void lanzarRemotePanelAutomaticamente() {
+        try {
+            System.out.println("🤖 Lanzando Panel Remoto automáticamente...");
+
+            // 1. Obtenemos la ruta del ejecutable de Java actual
+            String javaBin = System.getProperty("java.home") + "/bin/java";
+
+            // 2. Obtenemos el ClassPath actual (dónde están tus clases compiladas y librerías)
+            String classpath = System.getProperty("java.class.path");
+
+            // 3. Definimos la clase que queremos ejecutar
+            String className = aeron.net.RemotePanel.class.getName();
+
+            // 4. Construimos el comando
+            ProcessBuilder builder = new ProcessBuilder(javaBin, "-cp", classpath, className);
+
+            // IMPORTANTE: Redirigimos la salida para ver errores si los hay,
+            // aunque al hacerlo gráfico (siguiente paso) ya no dependeremos de la consola.
+            builder.inheritIO();
+
+            // 5. ¡Fuego! 🔥
+            builder.start();
+
+        } catch (Exception e) {
+            System.err.println("Error al intentar lanzar el panel remoto: " + e.getMessage());
+        }
     }
 }

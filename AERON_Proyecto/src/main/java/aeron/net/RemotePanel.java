@@ -1,5 +1,8 @@
 package aeron.net;
 
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -8,91 +11,96 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Cliente TCP (Práctica 7) que actúa como Panel de Vuelos Remoto.
- * <p>
- * ARQUITECTURA:
- * Este programa es un proceso totalmente independiente de la simulación principal.
- * Se conecta vía Sockets (TCP/IP) al servidor de la Torre para recibir actualizaciones
- * en tiempo real y mostrar una tabla de vuelos replicada.
+ * Cliente Gráfico (Swing).
+ * Se conecta al servidor y muestra la tabla de vuelos en una ventana real.
  */
-public class RemotePanel {
+public class RemotePanel extends JFrame {
 
-    // "Base de datos" local del cliente.
-    // Necesitamos este Mapa para guardar el estado de todos los vuelos recibidos,
-    // ya que la pantalla se borra y se repinta completa con cada actualización.
-    private static Map<String, String> vuelos = new HashMap<>();
+    private DefaultTableModel tableModel;
+    private Map<String, String> vuelos = new HashMap<>();
+    private JLabel statusLabel;
 
-    public static void main(String[] args) {
-        // Configuración de conexión (Hardcoded a localhost para la práctica)
+    public RemotePanel() {
+        // 1. Configuración de la Ventana
+        setTitle("✈️ PANEL DE VUELOS REMOTO (CLIENTE) ✈️");
+        setSize(400, 700);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocation(910, 0);
+        setLayout(new BorderLayout());
+
+        // 2. Crear la Tabla
+        String[] columnNames = {"VUELO", "ESTADO"};
+        tableModel = new DefaultTableModel(columnNames, 0);
+        JTable table = new JTable(tableModel);
+        table.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        table.setRowHeight(25);
+
+        // Colorines para la cabecera
+        table.getTableHeader().setBackground(new Color(50, 50, 150));
+        table.getTableHeader().setForeground(Color.WHITE);
+        table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 14));
+
+        add(new JScrollPane(table), BorderLayout.CENTER);
+
+        // 3. Barra de estado inferior
+        statusLabel = new JLabel("Conectando...");
+        statusLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        add(statusLabel, BorderLayout.SOUTH);
+
+        setVisible(true);
+
+        // 4. Iniciar la conexión en un hilo aparte para no congelar la ventana
+        new Thread(this::conectarYEscuchar).start();
+    }
+
+    private void conectarYEscuchar() {
         String host = "localhost";
         int port = 9999;
 
-        System.out.println("--- PANEL DE VUELOS REMOTO ---");
-        System.out.println("Conectando a " + host + ":" + port + "...");
-
-        // Usamos try-with-resources para asegurar que el socket y el reader se cierren bien
         try (Socket socket = new Socket(host, port);
              BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
-            System.out.println("¡Conectado! Esperando actualizaciones de la Torre...");
+            SwingUtilities.invokeLater(() -> statusLabel.setText("✅ CONECTADO AL SERVIDOR"));
+            statusLabel.setForeground(new Color(0, 150, 0));
 
             String inputLine;
-
-            // BUCLE DE ESCUCHA INFINITA:
-            // El método in.readLine() es BLOQUEANTE. El programa se detiene en esta línea
-            // hasta que el Servidor (DashboardServer) envía un mensaje con println().
-            // Cuando el servidor cierra la conexión, readLine() devuelve null y salimos.
             while ((inputLine = in.readLine()) != null) {
-
-                // PROTOCOLO DE APLICACIÓN:
-                // Hemos definido un formato simple de texto: "ID_VUELO:ESTADO"
-                // Ejemplo: "IBE-001:LANDED"
+                // Protocolo: "IBE-001:LANDED"
                 String[] partes = inputLine.split(":");
-
                 if (partes.length == 2) {
                     String id = partes[0];
                     String estado = partes[1];
 
-                    // 1. Actualizamos nuestra memoria local con el dato fresco
+                    // Actualizar datos
                     vuelos.put(id, estado);
 
-                    // 2. Refrescamos la interfaz de usuario (Consola)
-                    limpiarConsola();
-                    imprimirTabla();
+                    // Refrescar la tabla en el hilo de Swing
+                    SwingUtilities.invokeLater(this::actualizarTabla);
                 }
             }
 
         } catch (IOException e) {
-            // Gestión de errores de red (ej: servidor apagado o conexión rechazada)
-            System.err.println("Error de conexión (¿Está la simulación encendida?): " + e.getMessage());
+            SwingUtilities.invokeLater(() -> {
+                statusLabel.setText("❌ DESCONECTADO");
+                statusLabel.setForeground(Color.RED);
+            });
         }
     }
 
-    /**
-     * Genera y muestra la tabla ASCII con el estado de todos los vuelos conocidos.
-     */
-    private static void imprimirTabla() {
-        System.out.println("\n╔════════════════════════════════╗");
-        System.out.println("║       PANEL DE VUELOS REMOTO   ║");
-        System.out.println("╠════════════════╤═══════════════╣");
-        System.out.println("║ VUELO          │ ESTADO        ║");
-        System.out.println("╠════════════════╪═══════════════╣");
+    private void actualizarTabla() {
+        // Limpiamos la tabla actual
+        tableModel.setRowCount(0);
 
-        // Ordenamos por ID de vuelo alfabéticamente para que la tabla no baile
-        // cada vez que se repinta.
+        // Volvemos a llenarla con los datos ordenados
         vuelos.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .forEach(entry -> {
-                    // Formato de columnas fijo para mantener la alineación
-                    System.out.printf("║ %-14s │ %-13s ║%n", entry.getKey(), entry.getValue());
+                    tableModel.addRow(new Object[]{entry.getKey(), entry.getValue()});
                 });
-
-        System.out.println("╚════════════════╧═══════════════╝");
     }
 
-    // Truco simple para "limpiar" consola imprimiendo saltos de línea
-    // (Funciona en cualquier sistema operativo sin comandos complejos)
-    private static void limpiarConsola() {
-        for(int i = 0; i < 5; i++) System.out.println();
+    public static void main(String[] args) {
+        // Arrancar la interfaz gráfica
+        SwingUtilities.invokeLater(RemotePanel::new);
     }
 }

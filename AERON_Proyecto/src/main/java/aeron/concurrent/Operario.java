@@ -46,13 +46,16 @@ public class Operario implements Runnable {
                 // No consume CPU mientras espera.
                 Request peticion = tower.obtenerSiguientePeticion();
 
+                // Simulación de "Gestión Administrativa".
+                // Hacemos que el operario tarde un poco (0.5s) en revisar la petición.
+                // Esto permite ver claramente en el log el momento en que "Coge" la tarea
+                // separado del momento en que la "Procesa".
+                Thread.sleep(500);
+
                 // PASO 2: PROCESAR (Sección Crítica)
                 // Una vez tenemos la petición, delegamos la lógica compleja a la torre.
                 // Pasamos nuestro ID para que salga reflejado en los logs.
                 tower.procesarPeticion(peticion, this.id);
-
-                // Simulamos un pequeño tiempo de descanso o gestión administrativa entre tareas
-                Thread.sleep(50);
             }
         } catch (InterruptedException e) {
             // Si el hilo es interrumpido (al cerrar la app), salimos del bucle limpiamente.

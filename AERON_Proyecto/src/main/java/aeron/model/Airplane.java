@@ -8,7 +8,8 @@ import java.util.Random;
  * Representa un avión individual dentro de la simulación.
  * Implementa la interfaz Runnable para que cada avión pueda ejecutarse
  * en su propio hilo (Thread), permitiendo la concurrencia.
- * * Simula el ciclo de vida completo: Vuelo -> Aterrizaje -> Embarque -> Despegue.
+ * <p>
+ * Simula el ciclo de vida completo: Vuelo -> Aterrizaje -> Embarque -> Despegue.
  */
 public class Airplane implements Runnable {
 
@@ -28,6 +29,9 @@ public class Airplane implements Runnable {
     // Necesario para mostrar en el log: "Me ha tocado la pista X"
     private String assignedRunwayId;
     private String assignedGateId;
+
+    // Variable para cronometrar el tiempo total de operación (Requisito CSV)
+    private long startTime;
 
     /**
      * Constructor del avión.
@@ -72,8 +76,14 @@ public class Airplane implements Runnable {
         Logger.logEventos("Avión [" + id + " - " + status + "] El avión está en vuelo");
 
         try {
-            // Simulamos el tiempo que tarda el avión en llegar al espacio aéreo del aeropuerto
-            Thread.sleep(random.nextInt(1000) + 500);
+            // Simulamos el tiempo que tarda el avión en llegar al espacio aéreo del aeropuerto.
+            // AUMENTADO: Entre 1 y 3 segundos para que no lleguen todos de golpe al principio.
+            Thread.sleep(random.nextInt(2000) + 1000);
+
+            // =============================================================
+            // INICIO CRONÓMETRO (Según enunciado: al solicitar pista para aterrizar)
+            // =============================================================
+            this.startTime = System.currentTimeMillis();
 
             // =============================================================
             // FASE 1: SOLICITUD DE ATERRIZAJE
@@ -93,9 +103,8 @@ public class Airplane implements Runnable {
             // 3. ESPERA ACTIVA (Punto clave de la defensa):
             // Me quedo en este bucle "durmiendo" a trocitos hasta que un Operario
             // procese mi petición y cambie mi estado a LANDING_ASSIGNED.
-            // Usamos sleep(10) para no saturar la CPU mientras esperamos.
             while (this.status != FlightStatus.LANDING_ASSIGNED) {
-                Thread.sleep(10);
+                Thread.sleep(100); // Revisamos cada 0.1s
             }
 
             // --- AQUÍ YA TENEMOS RECURSOS ASIGNADOS ---
@@ -111,8 +120,9 @@ public class Airplane implements Runnable {
             // Notificamos a la torre que estamos aterrizando (para actualizar el Panel/JSON)
             tower.registrarPeticion(this);
 
-            // Simulamos el tiempo que tardo en usar la pista
-            Thread.sleep(100);
+            // AUMENTADO: 4 SEGUNDOS ocupando la pista.
+            // Aquí verás en la ventana de la torre cómo la pista se pone ROJA un buen rato.
+            Thread.sleep(4000);
 
             // 5. Fin del aterrizaje
             this.status = FlightStatus.LANDED;
@@ -121,7 +131,7 @@ public class Airplane implements Runnable {
             // Aviso a la torre de que he aterrizado.
             // IMPORTANTE: Esto hará que el Operario libere mi Pista (pero mantengo la Puerta).
             tower.registrarPeticion(this);
-            Thread.sleep(50); // Pequeña pausa técnica
+            Thread.sleep(500); // Pequeña pausa técnica
 
             // =============================================================
             // FASE 2: EMBARQUE (Puerta asignada)
@@ -129,15 +139,17 @@ public class Airplane implements Runnable {
 
             this.status = FlightStatus.BOARDING;
             Logger.logEventos("Avión [" + id + " - BOARDING] Embarcando");
-            // Simulamos el tiempo de carga/descarga de pasajeros
-            Thread.sleep(random.nextInt(500));
+
+            // AUMENTADO: 5 SEGUNDOS embarcando pasajeros.
+            // Verás en el Panel Remoto el estado "BOARDING" durante este tiempo.
+            Thread.sleep(5000);
 
             this.status = FlightStatus.BOARDED;
             Logger.logEventos("Avión [" + id + " - BOARDED] Embarcado");
 
             // Aviso a la torre. El Operario liberará mi Puerta.
             tower.registrarPeticion(this);
-            Thread.sleep(50);
+            Thread.sleep(500);
 
             // =============================================================
             // FASE 3: SOLICITUD DE DESPEGUE
@@ -151,7 +163,7 @@ public class Airplane implements Runnable {
 
             // ESPERA ACTIVA 2: Espero a que me asignen una pista libre para irme
             while (this.status != FlightStatus.TAKEOFF_ASSIGNED) {
-                Thread.sleep(10);
+                Thread.sleep(100);
             }
 
             Logger.logEventos("Avión [" + id + " - TAKEOFF_ASSIGNED] Despegue autorizado");
@@ -163,12 +175,23 @@ public class Airplane implements Runnable {
             // Actualizo panel
             tower.registrarPeticion(this);
 
-            // Tiempo ocupando la pista de despegue
-            Thread.sleep(100);
+            // AUMENTADO: 3 SEGUNDOS ocupando la pista de salida.
+            Thread.sleep(3000);
 
             // Fin del ciclo
             this.status = FlightStatus.DEPARTED;
             Logger.logEventos("Avión [" + id + " - DEPARTED] El avión ha despegado");
+
+            // =============================================================
+            // FIN CRONÓMETRO Y REGISTRO (Paso 2)
+            // =============================================================
+            long endTime = System.currentTimeMillis();
+            long totalTime = endTime - this.startTime;
+
+            // Registramos el dato en la clase de estadísticas para el CSV final
+            aeron.util.AirportStats.registrarVuelo(this.id, totalTime);
+
+            Logger.logEventos("Avión [" + id + " - DEPARTED] Completó ciclo en " + totalTime + " ms");
 
             // Último aviso: Libera la pista y salgo de la simulación
             tower.registrarPeticion(this);

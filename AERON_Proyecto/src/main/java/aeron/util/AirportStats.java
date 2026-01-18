@@ -3,48 +3,62 @@ package aeron.util;
 import aeron.exceptions.SimulationSummaryException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
-/**
- * Clase de utilidad encargada de generar las estadísticas finales de la simulación.
- * <p>
- * FUNCIONALIDAD (Práctica 6):
- * Al terminar la ejecución, vuelca los datos resumen (número de aviones, pistas, etc.)
- * a un archivo de texto con formato CSV (Comma Separated Values) para su posterior análisis.
- */
 public class AirportStats {
 
+    // Lista thread-safe para guardar los registros de cada avión
+    // Guardamos cadenas ya formateadas: "IBE-001;4500;1º"
+    private static List<FlightRecord> registros = Collections.synchronizedList(new ArrayList<>());
+
+    // Clase interna para facilitar el ordenamiento
+    static class FlightRecord implements Comparable<FlightRecord> {
+        String id;
+        long tiempo;
+
+        public FlightRecord(String id, long tiempo) {
+            this.id = id;
+            this.tiempo = tiempo;
+        }
+
+        @Override
+        public int compareTo(FlightRecord o) {
+            return Long.compare(this.tiempo, o.tiempo); // Ordenar por tiempo (opcional) o llegada
+        }
+    }
+
     /**
-     * Genera el archivo 'resumen_simulacion.csv'.
-     * Este metodo se invoca al finalizar el bucle principal en Simulation.java.
-     * * @param numAviones Cantidad total de aviones procesados en la simulación.
-     * @param numPistas Número de pistas que se configuraron.
+     * Método que llama cada avión al terminar su ciclo para registrar sus estadísticas.
      */
-    public static void generarResumen(int numAviones, int numPistas) {
+    public static void registrarVuelo(String id, long tiempoTotal) {
+        registros.add(new FlightRecord(id, tiempoTotal));
+    }
+
+    public static void generarResumen() {
         String fileName = "resumen_simulacion.csv";
 
-        // Usamos la estructura 'try-with-resources' (Java 7+).
-        // Esto garantiza que el FileWriter se cierre automáticamente al terminar el bloque,
-        // liberando el recurso del sistema operativo sin necesidad de un bloque 'finally'.
         try (FileWriter writer = new FileWriter(fileName)) {
+            // Cabecera exacta que pide el PDF
+            writer.write("Avión;Tiempo total (ms);Observaciones\n");
 
-            // Escribimos la cabecera del CSV con separador de punto y coma (;)
-            writer.write("Concepto;Valor\n");
+            // Escribimos cada fila
+            int ranking = 1;
+            synchronized (registros) {
+                for (FlightRecord reg : registros) {
+                    // Formato: IBE-001;4520;1º
+                    writer.write(String.format("%s;%d;%dº\n", reg.id, reg.tiempo, ranking++));
+                }
+            }
 
-            // Escribimos los datos dinámicos de la simulación
-            writer.write("Total Aviones;" + numAviones + "\n");
-            writer.write("Total Pistas;" + numPistas + "\n");
-            writer.write("Estado;Finalizado con Éxito\n");
-
-            System.out.println("Resumen CSV generado correctamente.");
+            System.out.println("📄 [CSV] Resumen generado: " + fileName);
 
         } catch (IOException e) {
-            // Si falla la escritura (ej: disco lleno, fichero abierto por otro programa),
-            // capturamos la excepción genérica y lanzamos la nuestra propia.
+            // REQUISITO P6: Capturar excepción
             try {
-                // Envolvemos el error en nuestra excepción de negocio
                 throw new SimulationSummaryException(fileName);
             } catch (SimulationSummaryException ex) {
-                // Imprimimos el mensaje de error amigable definido en la excepción
                 System.err.println(ex.getMessage());
             }
         }

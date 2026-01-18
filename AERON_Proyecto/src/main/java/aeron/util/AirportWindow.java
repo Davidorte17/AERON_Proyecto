@@ -1,62 +1,85 @@
 package aeron.util;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 
 /**
- * Ventana gráfica (GUI) basada en Swing para visualizar la simulación.
+ * Ventana gráfica (GUI) mejorada con estilo "Terminal de Torre de Control".
  * <p>
- * Su objetivo es mostrar en tiempo real los mismos mensajes que aparecen en la consola,
- * facilitando el seguimiento visual de los eventos sin perder el historial gracias al scroll.
+ * MEJORAS ESTÉTICAS:
+ * 1. Tema Oscuro (Dark Mode) para simular un monitor de radar antiguo.
+ * 2. Fuente Consolas/Monospaced más grande y legible.
+ * 3. Cabecera decorativa.
+ * 4. Scroll automático suavizado.
  */
 public class AirportWindow extends JFrame {
 
-    // Componente de texto multilínea donde iremos acumulando los logs
+    // Componente de texto donde escribiremos los logs
     private JTextArea logArea;
 
-    /**
-     * Constructor de la ventana.
-     * Configuramos el tamaño, título y disposición de los elementos.
-     */
     public AirportWindow() {
-        // Configuramos las propiedades básicas de la ventana principal
-        setTitle("Simulación Aeropuerto AERON");
-        setSize(800, 600);
+        // 1. Intentamos poner el estilo nativo del sistema operativo (Windows/Mac/Linux)
+        // para que los bordes de la ventana se vean modernos.
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception ignored) {}
 
-        // Aseguramos que al cerrar la ventana, se detenga la aplicación
+        // Configuración básica
+        setTitle("📡 AERON SYSTEM - LIVE MONITOR");
+        setSize(900, 700); // Un poco más grande
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
-        // Usamos un BorderLayout para que el texto ocupe todo el espacio central
         setLayout(new BorderLayout());
 
-        // Inicializamos el área de texto
+        // --- CABECERA (HEADER) ---
+        JPanel headerPanel = new JPanel();
+        headerPanel.setBackground(new Color(45, 45, 50)); // Gris oscuro
+        headerPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+        JLabel titleLabel = new JLabel("🛫 TORRE DE CONTROL - REGISTRO DE EVENTOS EN VIVO");
+        titleLabel.setForeground(Color.WHITE);
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        headerPanel.add(titleLabel);
+
+        add(headerPanel, BorderLayout.NORTH);
+
+        // --- ÁREA DE LOGS (ESTILO TERMINAL) ---
         logArea = new JTextArea();
-        logArea.setEditable(false); // Bloqueamos la edición para que sea solo de lectura
+        logArea.setEditable(false);
 
-        // Usamos fuente monoespaciada para que las tablas ASCII (Practica 7) se alineen bien
-        logArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        // Color de fondo: Negro casi puro
+        logArea.setBackground(new Color(20, 20, 20));
+        // Color de texto: Verde terminal (o blanco suave si prefieres new Color(220, 220, 220))
+        logArea.setForeground(new Color(50, 205, 50)); // Lime Green
 
-        // Envolvemos el área de texto en un ScrollPane para tener barras de desplazamiento
+        // Fuente: Importante que sea MONOSPACED para que las tablas ASCII no se rompan
+        // "Consolas" es genial en Windows, si no existe usa la por defecto.
+        logArea.setFont(new Font("Consolas", Font.PLAIN, 14));
+
+        // Margen interno para que el texto no se pegue al borde
+        logArea.setMargin(new Insets(10, 15, 10, 15));
+
+        // Scroll
         JScrollPane scrollPane = new JScrollPane(logArea);
+        scrollPane.setBorder(null); // Quitar borde feo por defecto
+
+        // Personalizar la barra de scroll (opcional, solo para oscurecerla un poco si el OS deja)
+        scrollPane.getViewport().setBackground(new Color(20, 20, 20));
+
         add(scrollPane, BorderLayout.CENTER);
 
-        // Hacemos visible la ventana en la pantalla
+        // Colocar en la esquina superior izquierda (x=0, y=0)
+        setLocation(0, 0);
+
+        // Hacer visible
         setVisible(true);
     }
 
-    /**
-     * Metodo thread-safe para añadir texto a la ventana desde cualquier hilo.
-     * @param text El mensaje de log a mostrar.
-     */
+    // Metodo para añadir texto a la ventana desde fuera
     public void addLog(String text) {
-        // IMPORTANTE: Swing no es Thread-Safe (no es seguro para hilos).
-        // Como este metodo lo llaman los hilos de los Aviones y Operarios,
-        // no podemos tocar el JTextArea directamente o la interfaz podría corromperse.
-        // Usamos 'invokeLater' para encolar la actualización en el Hilo de Eventos de Swing (EDT).
         SwingUtilities.invokeLater(() -> {
             logArea.append(text + "\n");
-
-            // Hacemos auto-scroll hacia abajo para ver siempre el mensaje más reciente
+            // Auto-scroll hacia abajo
             logArea.setCaretPosition(logArea.getDocument().getLength());
         });
     }
